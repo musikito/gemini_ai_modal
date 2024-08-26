@@ -22,12 +22,63 @@ const storage = multer.diskStorage({
 const upload = multer({ storage: storage }).single("image");
 let filePath;
 
-app.post("/upload",(req, res) =>{
-    upload(req, res,(error) =>{
-        if(error){ return res.status(500).json({error: error});}
-        filePath = req.file.path;
+app.post("/upload", (req, res) => {
+  upload(req, res, (error) => {
+    if (error) { return res.status(500).json({ error: error }); }
+    filePath = req.file.path;
 
-    });
+  });
+}); // End of upload endpoint
+
+
+
+app.post("/analyze", async (req, res) => {
+  try {
+    function fileToGenerativePart(path, mimeType) {
+      return {
+        inlineData: {
+          data: Buffer.from(fs.readFileSync(path)).toString("base64"),//fs.readFileSync(path),
+          mimeType,
+        }
+      }
+      // const file = fs.readFileSync(path);
+      // const base64 = Buffer.from(file).toString("base64");
+      // return {
+      //   mimeType,
+      //   data: base64,
+      // };
+    }; // End of fileToGenerativePart function
+
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const prompt = req.body.message;
+    // const prompt = "Describe the image in detail.";
+    // console.log(prompt);
+
+    const result = await model.generateContent([
+      prompt,
+      fileToGenerativePart(filePath, "image/jpeg"),
+    ]);
+    console.log(result.response.candidates[0].content.parts[0].text);
+    
+    const response = await result.response;
+    // const text = response.text;
+    const text = response.candidates[0].content.parts[0].text;
+    
+    res.send(text);
+
+  } catch (error) {
+    console.error(error);
+    // res.status(500).json({ error: "An error occurred while analyzing the image, Please try again." });
+
+  }
+  // const { prompt } = req.body;
+  // const response = await genAI.generateText({
+  //   model: "models/text-bison-001",
+  //   prompt: {
+  //     text: `Describe the image in detail. ${prompt}`,
+  //   },
+  // });
+  // res.json(response);
 });
 
 
